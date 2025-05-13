@@ -1,10 +1,17 @@
 package com.plcoding.spring_boot_crash_course.database.repository
 
 import com.plcoding.spring_boot_crash_course.database.model.RefreshToken
-import org.bson.types.ObjectId
-import org.springframework.data.mongodb.repository.MongoRepository
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import org.springframework.stereotype.Repository
+import java.util.*
 
-interface RefreshTokenRepository: MongoRepository<RefreshToken, ObjectId> {
-    fun findByUserIdAndHashedToken(userId: ObjectId, hashedToken: String): RefreshToken?
-    fun deleteByUserIdAndHashedToken(userId: ObjectId, hashedToken: String)
+@Repository
+interface RefreshTokenRepository : JpaRepository<RefreshToken, UUID> {
+    fun findByUserIdAndHashedToken(userId: UUID, hashedToken: String): RefreshToken?
+
+    @Modifying
+    @Query("DELETE FROM RefreshToken rt WHERE rt.userId = :userId AND rt.hashedToken = :hashedToken")
+    fun deleteByUserIdAndHashedToken(userId: UUID, hashedToken: String): Int
 }

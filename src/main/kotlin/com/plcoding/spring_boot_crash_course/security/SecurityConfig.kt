@@ -9,36 +9,28 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
-
 @Configuration
 class SecurityConfig(
     private val jwtAuthFilter: JwtAuthFilter
 ) {
 
     @Bean
-    fun filterChain(httpSecurity: HttpSecurity): SecurityFilterChain {
-        return httpSecurity
-            .csrf { csrf -> csrf.disable() }
+    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+        http
+            .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/")
-                    .permitAll()
-                    .requestMatchers("/auth/**")
-                    .permitAll()
-                    .dispatcherTypeMatchers(
-                        DispatcherType.ERROR,
-                        DispatcherType.FORWARD
-                    )
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated()
+                    .requestMatchers("/auth/register", "/auth/login", "/auth/refresh", "/auth/logout").permitAll()
+                    .requestMatchers("/", "/favicon.ico").permitAll()
+                    .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
+                    .anyRequest().authenticated()
             }
-            .exceptionHandling { configurer ->
-                configurer
-                    .authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+            .exceptionHandling { e ->
+                e.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             }
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
-            .build()
+
+        return http.build()
     }
 }

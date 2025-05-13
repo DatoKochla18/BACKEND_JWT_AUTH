@@ -1,15 +1,27 @@
 package com.plcoding.spring_boot_crash_course.database.model
 
-import org.bson.types.ObjectId
-import org.springframework.data.mongodb.core.index.Indexed
-import org.springframework.data.mongodb.core.mapping.Document
+import jakarta.persistence.*
 import java.time.Instant
+import java.util.*
 
-@Document("refresh_tokens")
+@Entity
+@Table(name = "refresh_tokens")
 data class RefreshToken(
-    val userId: ObjectId,
-    @Indexed(expireAfter = "0s")
-    val expiresAt: Instant,
+    @Id
+    @Column(columnDefinition = "uniqueidentifier")
+    val id: UUID = UUID.randomUUID(),
+
+    @Column(columnDefinition = "uniqueidentifier", nullable = false)
+    val userId: UUID,
+
+    @Column(nullable = false)
     val hashedToken: String,
+
+    @Column(nullable = false)
+    val expiresAt: Instant,
+
+    @Column(nullable = false)
     val createdAt: Instant = Instant.now()
-)
+) {
+
+}

@@ -1,14 +1,14 @@
 package com.plcoding.spring_boot_crash_course.controllers
 
-import com.plcoding.spring_boot_crash_course.controllers.NoteController.NoteResponse
 import com.plcoding.spring_boot_crash_course.database.model.Note
 import com.plcoding.spring_boot_crash_course.database.repository.NoteRepository
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
-import org.bson.types.ObjectId
+import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import java.time.Instant
+import java.util.*
 
 // POST http://localhost:8085/notes
 // GET http://localhost:8085/notes?ownerId=123
@@ -17,16 +17,14 @@ import java.time.Instant
 @RestController
 @RequestMapping("/notes")
 class NoteController(
-    private val repository: NoteRepository,
     private val noteRepository: NoteRepository
 ) {
-
     data class NoteRequest(
         val id: String?,
         @field:NotBlank(message = "Title can't be blank.")
         val title: String,
         val content: String,
-        val color: Long,
+        val color: Long
     )
 
     data class NoteResponse(
@@ -40,45 +38,53 @@ class NoteController(
     @PostMapping
     fun save(
         @Valid @RequestBody body: NoteRequest
-    ): NoteResponse {
-        val ownerId = SecurityContextHolder.getContext().authentication.principal as String
-        val note = repository.save(
-            Note(
-                id = body.id?.let { ObjectId(it) } ?: ObjectId.get(),
-                title = body.title,
-                content = body.content,
-                color = body.color,
-                createdAt = Instant.now(),
-                ownerId = ObjectId(ownerId)
-            )
-        )
+    ): ResponseEntity<NoteResponse> {
+        val ownerIdStr = SecurityContextHolder.getContext().authentication.principal as String
+        val ownerId = UUID.fromString(ownerIdStr)
 
-        return note.toResponse()
+        val noteId = body.id?.let(UUID::fromString) ?: UUID.randomUUID()
+        val note = Note(
+            id = noteId,
+            title = body.title,
+            content = body.content,
+            color = body.color,
+            createdAt = Instant.now(),
+            ownerId = ownerId
+        )
+        val saved = noteRepository.save(note)
+        return ResponseEntity.ok(saved.toResponse())
     }
 
     @GetMapping
     fun findByOwnerId(): List<NoteResponse> {
-        val ownerId = SecurityContextHolder.getContext().authentication.principal as String
-        return repository.findByOwnerId(ObjectId(ownerId)).map {
-            it.toResponse()
-        }
+        val ownerIdStr = SecurityContextHolder.getContext().authentication.principal as String
+        val ownerId = UUID.fromString(ownerIdStr)
+        return noteRepository.findByOwnerId(ownerId).map { it.toResponse() }
     }
 
-    @DeleteMapping(path = ["/{id}"])
-    fun deleteById(@PathVariable id: String) {
-        val note = noteRepository.findById(ObjectId(id)).orElseThrow {
+    @GetMapping("/{id}")
+    fun findNoteByOwnerId(@PathVariable id: String): NoteResponse {
+        val ownerIdStr = SecurityContextHolder.getContext().authentication.principal as String
+        val ownerId = UUID.fromString(ownerIdStr)
+        return noteRepository.findByOwnerId(ownerId).map { it.toResponse() }.first { it.id == id }
+    }
+
+    @DeleteMapping("/{id}")
+    fun deleteById(@PathVariable id: String): ResponseEntity<Void> {
+        val uuid = UUID.fromString(id)
+        val note = noteRepository.findById(uuid).orElseThrow {
             IllegalArgumentException("Note not found")
         }
-        val ownerId = SecurityContextHolder.getContext().authentication.principal as String
-        if(note.ownerId.toHexString() == ownerId) {
-            repository.deleteById(ObjectId(id))
+        val ownerIdStr = SecurityContextHolder.getContext().authentication.principal as String
+        if (note.ownerId.toString() == ownerIdStr) {
+            noteRepository.deleteById(uuid)
+            return ResponseEntity.noContent().build()
         }
+        return ResponseEntity.status(403).build()
     }
-}
 
-private fun Note.toResponse(): NoteController.NoteResponse {
-    return NoteResponse(
-        id = id.toHexString(),
+    private fun Note.toResponse() = NoteResponse(
+        id = id.toString(),
         title = title,
         content = content,
         color = color,

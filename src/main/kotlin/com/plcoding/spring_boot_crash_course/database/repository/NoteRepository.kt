@@ -1,9 +1,11 @@
 package com.plcoding.spring_boot_crash_course.database.repository
 
 import com.plcoding.spring_boot_crash_course.database.model.Note
-import org.bson.types.ObjectId
-import org.springframework.data.mongodb.repository.MongoRepository
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.stereotype.Repository
+import java.util.*
 
-interface NoteRepository: MongoRepository<Note, ObjectId> {
-    fun findByOwnerId(ownerId: ObjectId): List<Note>
+@Repository
+interface NoteRepository : JpaRepository<Note, UUID> {
+    fun findByOwnerId(ownerId: UUID): List<Note>
 }
